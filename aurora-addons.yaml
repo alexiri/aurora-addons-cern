@@ -35,6 +35,11 @@ addons:
     name: "CERN Phonebook"
     description: "Look up people and e-groups in CERN's central directory (xldap.cern.ch) through the Aurora gateway — e-mail addresses, offices, departments and managers; read-only and anonymous"
     versions:
+      "0.1.2":
+        package: https://github.com/alexiri/aurora-addons-cern/releases/download/v0.1.2/cern-phonebook-0.1.2.aurora-plugin
+        sha256: 2bb3e494dbae9b36e0d0a0b8c74702d3d07cbff5bd89d89c7c421632f9d850ca
+        size_bytes: 14009
+        min_core: "0.1.0"
       "0.1.0":
         package: https://github.com/alexiri/aurora-addons-cern/releases/download/v0.1.0/cern-phonebook-0.1.0.aurora-plugin
         sha256: eee6ea032b4740bf5be7634c6f907df7f27c26c751b13b5a623b7080637dd5a6

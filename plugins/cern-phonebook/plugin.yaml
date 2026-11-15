@@ -1,6 +1,6 @@
 package:
   id: cern-phonebook
-  version: 0.1.1
+  version: 0.1.2
   contract: 1
   min_core: 0.1.0
   publisher: cern
