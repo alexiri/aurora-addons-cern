@@ -1,0 +1,17 @@
+# The fixed top of aurora-addons.yaml (scripts/release.sh manifest appends the addons).
+# `signing_key` is the PUBLIC half of the repository key (cern-release.key.pub); the private half
+# never enters this repository.
+api: 1
+
+repo:
+  name: CERN addons
+  description: >-
+    Aurora app packages for CERN services: the CERN Phonebook (people and e-groups from the central
+    directory) and CERN Maps (buildings, rooms, directions).
+  homepage: https://github.com/alexiri/aurora-addons-cern
+  contact: https://github.com/alexiri/aurora-addons-cern/issues
+
+publisher: cern
+
+signing_key: "H8ZeIj/CtmFqdOQl4Kfw7JrNEtFIv/R+LgwVksZ7mBc="
+signing_key_description: "CERN addons release key"

@@ -1,0 +1,117 @@
+name: release
+
+# push / pull request to main: build, fixture-test, check the manifest for drift (no key, nothing published).
+# v* tag: the same, then sign with the repository key and publish a GitHub Release (environment `release`).
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  # The `aurora` CLI is built from source at this commit of github.com/alexiri/aurora (master, the
+  # gateway LDAP lane included); the repository has no releases to download. Bump it deliberately,
+  # in a reviewed change, and note that a CLI that builds archives differently changes the
+  # "unsigned sha256" in releases/*.release (the drift check then fails until re-recorded).
+  AURORA_REV: c1b315d796f3065165ebb0a0d011241294ae9aa1
+
+jobs:
+  build:
+    name: build and verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: aurora CLI (cache)
+        id: aurora-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/aurora
+          key: aurora-cli-${{ env.AURORA_REV }}
+      - name: aurora CLI (build from source)
+        if: steps.aurora-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli
+      - name: build, fixture tests, manifest drift
+        run: |
+          aurora --version || true
+          scripts/release.sh check
+      - name: unsigned archives (convenience, never referenced by the manifest)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-archives
+          path: dist/*.aurora-plugin
+
+  publish:
+    name: sign and publish
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # The signing key is a secret of this environment only (restricted to v* tags by the repository settings).
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: the tag is a commit of main
+        run: |
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::tag $GITHUB_REF_NAME is not a commit of main"; exit 1; }
+      - name: aurora CLI (cache)
+        id: aurora-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/aurora
+          key: aurora-cli-${{ env.AURORA_REV }}
+      - name: aurora CLI (build from source)
+        if: steps.aurora-cache.outputs.cache-hit != 'true'
+        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli
+      - name: a version is published once
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "::error::release $GITHUB_REF_NAME already exists; a published version is immutable, publish a new version instead"
+            exit 1
+          fi
+      - name: build, fixture tests, manifest drift
+        run: scripts/release.sh check
+      - name: repository signing key
+        id: key
+        env:
+          AURORA_CERN_SIGNING_KEY: ${{ secrets.AURORA_CERN_SIGNING_KEY }}
+        run: |
+          if [ -z "$AURORA_CERN_SIGNING_KEY" ]; then
+            echo "::warning::signing SKIPPED, AURORA_CERN_SIGNING_KEY is not available; nothing is signed or published"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          umask 077
+          printf '%s' "$AURORA_CERN_SIGNING_KEY" > "$RUNNER_TEMP/cern-release.key"
+          chmod 600 "$RUNNER_TEMP/cern-release.key"
+          echo "present=true" >> "$GITHUB_OUTPUT"
+      - name: sign and verify against the manifest's key
+        if: steps.key.outputs.present == 'true'
+        run: |
+          scripts/release.sh sign --key "$RUNNER_TEMP/cern-release.key"
+          scripts/release.sh verify-signed
+      - name: publish the release
+        if: steps.key.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t assets < <(scripts/release.sh assets "$GITHUB_REF_NAME")
+          [ "${#assets[@]}" -gt 0 ] || { echo "::error::no recorded package belongs to $GITHUB_REF_NAME"; exit 1; }
+          scripts/release.sh notes "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+      - name: the published assets are what the manifest says
+        if: steps.key.outputs.present == 'true'
+        run: scripts/release.sh verify-published
+      - name: remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/cern-release.key"

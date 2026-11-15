@@ -1,0 +1,43 @@
+# CERN Maps: every tool has a positive case and a `negative <tool>:` case. No credentials exist.
+- name: "search_places: a building number"
+  request: { method: GET, url: "https://maps.cern.ch/api/search?query=513&filterBy=&resultOffset=0&resultRecordCount=5" }
+  expect: { app: cern-maps, tool: search_places }
+- name: "search_places: a room"
+  request: { method: GET, url: "https://maps.cern.ch/api/search?query=513%20R-068&resultRecordCount=3" }
+  expect: { app: cern-maps, tool: search_places }
+- name: "negative search_places: POST selects no tool"
+  request: { method: POST, url: "https://maps.cern.ch/api/search?query=513" }
+  expect: { app: cern-maps }
+- name: "get_place: the feature of a search hit"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/query?where=OBJECTID%3D%274159%27&outFields=*&f=json" }
+  expect: { app: cern-maps, tool: get_place }
+- name: "negative get_place: the feature editing endpoint selects no tool"
+  request: { method: POST, url: "https://maps.cern.ch/arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/applyEdits" }
+  expect: { app: cern-maps }
+- name: "negative get_place: another layer of the FeatureServer selects no tool"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/1/query?where=1%3D1&f=json" }
+  expect: { app: cern-maps }
+- name: "geocode: a building number"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=513&f=json&maxLocations=3&outSR=4326" }
+  expect: { app: cern-maps, tool: geocode }
+- name: "negative geocode: another geocoder operation selects no tool"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/geocodeAddresses?f=json" }
+  expect: { app: cern-maps }
+- name: "get_travel_modes: the service description"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route?f=json" }
+  expect: { app: cern-maps, tool: get_travel_modes }
+- name: "negative get_travel_modes: POST selects no tool"
+  request: { method: POST, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route" }
+  expect: { app: cern-maps }
+- name: "get_directions: a route between two coordinates"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=6.0459,46.2325;6.0526,46.2330&inSR=4326&returnRoutes=true&f=json" }
+  expect: { app: cern-maps, tool: get_directions }
+- name: "negative get_directions: a different network analysis service selects no tool"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/ServiceArea/solveServiceArea?f=json" }
+  expect: { app: cern-maps }
+- name: "negative: the rest of the ArcGIS server is not a tool"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/admin/services?f=json" }
+  expect: { app: cern-maps }
+- name: "negative: another host is not this app"
+  request: { method: GET, url: "https://example.org/api/search?query=513" }
+  expect: {}

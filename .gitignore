@@ -1,0 +1,10 @@
+# The repo's signing key pair stays local: the private half is the release
+# environment secret AURORA_CERN_SIGNING_KEY; the public half is published
+# in aurora-addons.yaml (signing_key), not as a file.
+cern-release.key
+cern-release.key.pub
+*.key
+
+# Build output
+dist/
+*.aurora-plugin

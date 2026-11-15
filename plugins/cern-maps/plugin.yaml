@@ -1,0 +1,52 @@
+package:
+  id: cern-maps
+  version: 0.1.0
+  contract: 1
+  min_core: 0.1.0
+  publisher: cern
+  name: CERN Maps
+  description: Find buildings, rooms and points of interest on the CERN sites, look up their details, geocode a building number and get walking, cycling or driving directions with travel times from the public CERN Maps services (maps.cern.ch); read-only and keyless
+  homepage: https://github.com/alexiri/aurora-addons-cern
+apps:
+  - about:
+      id: cern-maps
+      name: CERN Maps
+      description: Let agents find a building, room or point of interest on the CERN sites, see where it is, and work out how to get from one place to another and how long it takes. The services are public and need no account.
+      category: maps
+      api_docs: https://maps.docs.cern.ch
+      connect_note:
+        text: "Nothing to enter: CERN Maps is read without signing in. Connect it to give an agent the right to query it; every request is checked against your rules and logged."
+        url: https://maps.cern.ch
+      label_hint: CERN Maps
+    connect:
+      - id: anonymous
+        kind: fields
+        fields: []
+    hosts:
+      - match: { host: maps.cern.ch }
+        inject: []
+    tools:
+      read:
+        items:
+          - { id: search_places, name: "Search buildings, rooms and points of interest", host: maps.cern.ch, path: /api/search, methods: [GET] }
+          - { id: get_place, name: "Get the details and outline of a place", host: maps.cern.ch, path: /arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/query, methods: [GET] }
+          - { id: geocode, name: "Find a building by its number or name", host: maps.cern.ch, path: /arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates, methods: [GET] }
+          - { id: get_travel_modes, name: "List the routing travel modes (walk, bike, car)", host: maps.cern.ch, path: /arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route, methods: [GET] }
+          - { id: get_directions, name: "Route between two points with travel times", host: maps.cern.ch, path: /arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve, methods: [GET] }
+    agent:
+      instructions: |
+        CERN Maps is public: GET https://maps.cern.ch only (Aurora adds nothing); five paths are
+        allowed and everything else on the host is blocked.
+        Search: /api/search?query=<513 | 513 R-068 | Main Auditorium | restaurant>&resultRecordCount=10
+        gives hits[].document {label, category_type_en, etage, location [[lat, lon]], search_id, id}.
+        Details: /arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/query?where=OBJECTID='<id>'&outFields=*&outSR=4326&f=json
+        Geocode: /arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=<building>&maxLocations=3&outSR=4326&f=json
+        (location x is longitude, y latitude; without outSR they are Swiss LV95).
+        Directions: first /arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route?f=json lists the
+        travel modes; copy the whole object named Pedestrian, Bike or Car (a bare name is refused).
+        Then /arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=<lon>,<lat>;<lon>,<lat>&inSR=4326&travelMode=<that JSON>&returnRoutes=true&returnDirections=true&f=json:
+        the route's attributes hold Total_Meters and the minutes (Total_WalkTime, Total_BikeTime or
+        Total_DriveTime); say which mode a time is for. Geocode or search both ends first.
+        Map links need no call: https://maps.cern.ch/?n=513 (several with commas), &travelMode=Pedestrian|Bike|Car,
+        itinerary={n:"54",c:{x:<LV95 x>,y:<LV95 y>}}~{n:"33",c:{...}} (percent-encoded). Give an
+        "Open in CERN Maps" link with every place or route. Keep queries few and small.
