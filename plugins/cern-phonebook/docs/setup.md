@@ -19,8 +19,9 @@ against CERN's CA page before trusting it. Without it, searches fail with `ldap_
 
 1. Approve the package (an instance administrator reviews it once: it can read directory entries
    from `xldap.cern.ch:636` below `DC=cern,DC=ch`, for the attributes listed in the approval).
-2. Add the connection (nothing to enter; give it a label such as "CERN directory") and grant it to
-   the agents or workspaces that should be able to look people up.
+2. On the agent's **Access** tab, choose **Give access** next to CERN Phonebook. There is nothing
+   to enter or sign in to: Aurora creates the workspace's "CERN directory" connection the first
+   time and reuses it for the next agent. Only agents that were given access can search.
 
 ## What it can and cannot do
 
