@@ -45,6 +45,7 @@ apps:
         - memberOf
         - member
         - description
+        - objectClass
     hosts:
       - match: { host: cern-phonebook.ldap.aurora.internal }
         inject: []
@@ -63,7 +64,7 @@ apps:
         {"entries": [{"dn": "...", "attributes": {"mail": ["..."]}}], "truncated": false}.
         Attributes you may ask for or filter on: uid, cn, displayName, mail, telephoneNumber,
         physicalDeliveryOfficeName, cernDepartment, cernGroup, cernSection, cernInstituteName,
-        manager, cernReportTo, memberOf, member, description. Nothing else can be read.
+        manager, cernReportTo, memberOf, member, description, objectClass. Nothing else can be read.
         Filters are RFC 4515 (at most 1 KiB): `(uid=jdoe)`, `(displayName=Jane Do*)`,
         `(mail=jane.doe@*)`; escape `*`, `(`, `)` and `\` in a value as \2a \28 \29 \5c.
         Recipes. Find a person: `(|(displayName=Jane Do*)(mail=jane.do*)(cn=jane do*))` with the

@@ -13,7 +13,8 @@ permissions:
   contents: read
 
 env:
-  # The `aurora` CLI is built from source at this commit of github.com/alexiri/aurora (master, the
+  # The `aurora` CLI and the `aurora-gateway` binary (`aurora plugin test` runs the gateway's
+  # check-snapshot) are built from source at this commit of github.com/alexiri/aurora (master, the
   # gateway LDAP lane included); the repository has no releases to download. Bump it deliberately,
   # in a reviewed change, and note that a CLI that builds archives differently changes the
   # "unsigned sha256" in releases/*.release (the drift check then fails until re-recorded).
@@ -29,11 +30,13 @@ jobs:
         id: aurora-cache
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/aurora
+          path: |
+            ~/.cargo/bin/aurora
+            ~/.cargo/bin/aurora-gateway
           key: aurora-cli-${{ env.AURORA_REV }}
       - name: aurora CLI (build from source)
         if: steps.aurora-cache.outputs.cache-hit != 'true'
-        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli
+        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli aurora-gateway
       - name: build, fixture tests, manifest drift
         run: |
           aurora --version || true
@@ -66,11 +69,13 @@ jobs:
         id: aurora-cache
         uses: actions/cache@v4
         with:
-          path: ~/.cargo/bin/aurora
+          path: |
+            ~/.cargo/bin/aurora
+            ~/.cargo/bin/aurora-gateway
           key: aurora-cli-${{ env.AURORA_REV }}
       - name: aurora CLI (build from source)
         if: steps.aurora-cache.outputs.cache-hit != 'true'
-        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli
+        run: cargo install --locked --git https://github.com/alexiri/aurora --rev "$AURORA_REV" aurora-cli aurora-gateway
       - name: a version is published once
         env:
           GH_TOKEN: ${{ github.token }}
