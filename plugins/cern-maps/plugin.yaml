@@ -1,6 +1,6 @@
 package:
   id: cern-maps
-  version: 0.1.0
+  version: 0.1.1
   contract: 1
   min_core: 0.1.0
   publisher: cern
@@ -25,6 +25,10 @@ apps:
     hosts:
       - match: { host: maps.cern.ch }
         inject: []
+    # The ArcGIS server behind maps.cern.ch is large; only the catalogued requests may be made
+    # (a request that matches no tool is blocked under every grant).
+    grants:
+      block_untooled: true
     tools:
       read:
         items:
