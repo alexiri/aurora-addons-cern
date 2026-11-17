@@ -9,8 +9,9 @@ services are public; there is no account or password to set up.
 
 1. Approve the package (an instance administrator reviews it once: it can make `GET` requests to
    five specific paths on `maps.cern.ch`, listed in the approval).
-2. Add the connection (nothing to enter; give it a label such as "CERN Maps") and grant it to the
-   agents or workspaces that should be able to use it.
+2. On an agent's **Access** tab, choose **Give access** next to CERN Maps. There is nothing to
+   enter: Aurora creates the workspace's connection for you the first time, and you can still see
+   and revoke it under Connections.
 
 ## What it can and cannot do
 

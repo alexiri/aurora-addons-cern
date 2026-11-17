@@ -32,6 +32,42 @@
 - name: "get_directions: a route between two coordinates"
   request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=6.0459,46.2325;6.0526,46.2330&inSR=4326&returnRoutes=true&f=json" }
   expect: { app: cern-maps, tool: get_directions }
+- name: "get_place: a search hit's document.url as given gets JSON, LV95 and the centroid"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/query?where=OBJECTID='632'" }
+  expect:
+    app: cern-maps
+    tool: get_place
+    upstream: { url: "https://maps.cern.ch/arcgis/rest/services/Hosted/LOC_MAPCERN/FeatureServer/0/query?where=OBJECTID='632'&f=json&outSR=2056&outFields=%2A&returnGeometry=false&returnCentroid=true" }
+- name: "geocode: a building number as the instructions write it gets JSON in LV95"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31" }
+  expect:
+    app: cern-maps
+    tool: geocode
+    upstream: { url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31&f=json&outSR=2056" }
+- name: "geocode: the agent's own f and outSR are replaced, not doubled"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31&f=html&outSR=4326" }
+  expect:
+    app: cern-maps
+    tool: geocode
+    upstream: { url: "https://maps.cern.ch/arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31&f=json&outSR=2056" }
+- name: "get_directions: building 31 to building 5 on foot, as the instructions write it"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=2492507.9,1121100.97;2493266.81,1121076.19&travelMode=3" }
+  expect:
+    app: cern-maps
+    tool: get_directions
+    upstream: { url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=2492507.9,1121100.97;2493266.81,1121076.19&travelMode=3&f=json&outSR=2056&outputLines=esriNAOutputLineNone&returnDirections=true&directionsLanguage=en&directionsLengthUnits=esriNAUMeters&returnStops=false" }
+- name: "get_travel_modes: the service description gets JSON"
+  request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route" }
+  expect:
+    app: cern-maps
+    tool: get_travel_modes
+    upstream: { url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route?f=json&outSR=2056" }
+- name: "search_places: the search API gets nothing added"
+  request: { method: GET, url: "https://maps.cern.ch/api/search?query=31&resultRecordCount=5" }
+  expect:
+    app: cern-maps
+    tool: search_places
+    upstream: { url: "https://maps.cern.ch/api/search?query=31&resultRecordCount=5" }
 - name: "negative get_directions: a different network analysis service selects no tool"
   request: { method: GET, url: "https://maps.cern.ch/arcgis/rest/services/Routing/NetworkAnalysis/NAServer/ServiceArea/solveServiceArea?f=json" }
   expect: { app: cern-maps }
