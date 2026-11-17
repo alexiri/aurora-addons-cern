@@ -27,13 +27,18 @@ plugins/<id>/               one package: plugin.yaml, docs/setup.md, assets/icon
 releases/<id>-<ver>.release the immutable record of a published version: tag, sha256 (signed), size, unsigned sha256
 scripts/manifest-head.yaml  the fixed top of the manifest (repo info, publisher, the PUBLIC signing key)
 scripts/release.sh          build, test, sign, record and manifest generation
-.github/workflows/release.yml  CI: verify on every push; sign and publish on a v* tag
+.github/workflows/release.yml  CI: verify on every push; sign and publish on a v* tag (a release, v1, v2, …)
 ```
 
 ## Releasing a version (maintainer)
 
 A published version is **immutable**: the packages are signed archives published as GitHub release
 assets and the manifest pins their sha256. A fix is a new version.
+
+Each package has its own version (`package.version`). Releases of the repository are numbered on
+their own, `v1`, `v2`, `v3`, …: a release carries every package version recorded since the previous
+one, whichever packages those are. (The releases `v0.1.0` … `v0.1.3` predate this numbering and keep
+their names.)
 
 1. Change the package under `plugins/<id>/` and raise `package.version` in its `plugin.yaml`.
 2. Locally, with the `aurora` CLI on the PATH (or `AURORA=/path/to/aurora`) and the private key file
@@ -44,13 +49,16 @@ assets and the manifest pins their sha256. A fix is a new version.
    ```
 
    This builds and fixture-tests every package, signs the archives, verifies each against the
-   manifest's `signing_key`, writes `releases/<id>-<version>.release` and regenerates
-   `aurora-addons.yaml`. Review the diff and commit it like any other change.
+   manifest's `signing_key`, writes `releases/<id>-<version>.release` for each new version and
+   regenerates `aurora-addons.yaml`. A new record names the **next release**, one more than the
+   highest `vN` tag on origin, and the script prints it (`scripts/release.sh next-tag` shows it too).
+   Review the diff and commit it like any other change.
 3. Push to `main`. CI rebuilds everything **without the key**, runs the fixtures, and fails if the
    manifest differs from what the sources, the records and `scripts/manifest-head.yaml` produce, or if
    a package's source no longer matches its recorded unsigned build (the build is deterministic).
-4. Tag the commit `v<version>` (the `tag` field of the new records; `TAG=... scripts/release.sh all`
-   chooses another) and push the tag. The `publish` job (environment `release`, the secret
+4. Tag the commit with that release number (`git tag v4 && git push origin v4`; it is the `tag`
+   field of the new records). Changing several packages before tagging is fine: every new record
+   names the same pending release until its tag exists. The `publish` job (environment `release`, the secret
    `AURORA_CERN_SIGNING_KEY`) signs, checks the signed archives against the records, creates the
    GitHub Release with the archives as assets, and downloads them again to compare sha256 and size
    with the manifest. Re-running it for a tag that is already released fails.

@@ -5,6 +5,7 @@
 #   scripts/release.sh build                 unsigned archives in dist/ + `aurora plugin test` per package
 #   scripts/release.sh sign --key FILE       sign dist/*.aurora-plugin, verify each against the manifest's key
 #   scripts/release.sh record                write releases/<id>-<version>.release from dist/ (immutable)
+#   scripts/release.sh next-tag              the release tag new records get (v1, v2, …)
 #   scripts/release.sh manifest [--check]    write aurora-addons.yaml; --check only diffs (CI: drift = failure)
 #   scripts/release.sh all --key FILE        build + sign + record + manifest (what the owner runs locally)
 #   scripts/release.sh check                 build + manifest --check: everything CI can do without the key
@@ -19,6 +20,12 @@
 # A version is immutable. `record` refuses to change a record that exists: fix a mistake with a new
 # version in plugins/<id>/plugin.yaml. The record keeps the sha256 of the unsigned build too, so CI,
 # which has no key, still detects a source change that was not re-recorded (the build is deterministic).
+#
+# Releases of this repository are numbered on their own, v1, v2, v3, …, independently of the package
+# versions: one release (one tag, one GitHub Release) carries every package version recorded since
+# the previous one. New records get the next number after the highest vN tag on origin; until that
+# tag is pushed, every new record gets the same number. Records made before this scheme keep their
+# tags (v0.1.0 … v0.1.3). TAG=vN overrides the number (it must not be on origin already).
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
@@ -79,15 +86,41 @@ cmd_sign() {
   done
 }
 
+# the tags on origin, one per line (local tags, with a warning, when origin cannot be reached)
+known_tags() {
+  local t
+  if t="$(git ls-remote --tags --refs origin 2>/dev/null)"; then
+    printf '%s\n' "$t" | sed 's|.*refs/tags/||'
+  else
+    echo "release.sh: origin cannot be reached; numbering from local tags (run git fetch --tags first)" >&2
+    git tag -l
+  fi
+}
+
+# the release tag new records get: TAG, or v<highest vN on origin + 1>
+release_tag() {
+  local tags n; tags="$(known_tags)"
+  if [ -n "${TAG:-}" ]; then
+    [[ "$TAG" =~ ^v[1-9][0-9]*$ ]] || die "TAG must be v<number> (v1, v2, …), not '$TAG'"
+    ! printf '%s\n' "$tags" | grep -qxF "$TAG" || die "TAG $TAG is already a tag on origin; a release is published once"
+    echo "$TAG"; return
+  fi
+  n="$(printf '%s\n' "$tags" | sed -n 's/^v\([0-9][0-9]*\)$/\1/p' | sort -n | tail -1)"
+  echo "v$(( ${n:-0} + 1 ))"
+}
+
 cmd_record() {
   mkdir -p releases
+  local next="" recorded=""
   for dir in $(plugins); do
     id="$(pkg_field "$dir/plugin.yaml" id)"; ver="$(pkg_field "$dir/plugin.yaml" version)"
     a="$(archive_of "$id" "$ver")"; r="releases/$id-$ver.release"
     [ -f "$a" ] || die "record: $a is missing"
+    # an existing record keeps its tag; a new one gets the next release number
+    if [ -f "$r" ]; then tag="$(record_get "$r" tag)"; else next="${next:-$(release_tag)}"; tag="$next"; fi
     new="id=$id
 version=$ver
-tag=${TAG:-v$ver}
+tag=$tag
 unsigned_sha256=$(cat "$DIST/$id-$ver.unsigned.sha256")
 sha256=$(sha256sum "$a" | cut -d' ' -f1)
 size=$(stat -c %s "$a")"
@@ -95,9 +128,10 @@ size=$(stat -c %s "$a")"
       [ "$(cat "$r")" = "$new" ] || die "record: $r exists with different content; a published version is immutable, bump the version of $id"
       echo "record $r unchanged"
     else
-      printf '%s\n' "$new" > "$r"; echo "recorded $r"
+      printf '%s\n' "$new" > "$r"; echo "recorded $r (release $tag)"; recorded=1
     fi
   done
+  [ -z "$recorded" ] || echo "new records name release $next: commit, push main, then tag that commit $next and push the tag"
 }
 
 # the manifest text, assembled from the head, plugin.yaml (name, description) and the records
@@ -197,6 +231,7 @@ case "$c" in
   build) cmd_build ;;
   sign) cmd_sign "$@" ;;
   record) cmd_record ;;
+  next-tag) release_tag ;;
   manifest) cmd_manifest "$@" ;;
   all) cmd_build; cmd_sign "$@"; cmd_record; cmd_manifest ;;
   check) cmd_build; cmd_manifest --check ;;
@@ -204,5 +239,5 @@ case "$c" in
   notes) cmd_notes "${1:?usage: notes <tag>}" ;;
   assets) cmd_assets "${1:?usage: assets <tag>}" ;;
   verify-published) cmd_verify_published ;;
-  *) sed -n '2,16p' "$0" >&2; exit 2 ;;
+  *) sed -n '2,17p' "$0" >&2; exit 2 ;;
 esac
