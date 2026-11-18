@@ -1,6 +1,6 @@
 package:
   id: cern-maps
-  version: 0.1.3
+  version: 0.1.4
   contract: 1
   min_core: 0.1.0
   publisher: cern
@@ -65,15 +65,24 @@ apps:
     agent:
       instructions: |
         Plain GET requests to https://maps.cern.ch, no sign-in. Aurora adds the format and the
-        settings; send only what is shown. Every position is x,y (Swiss coordinates); use them as is.
-        1. Where is a place: a building number → /arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31
-           gives candidates[0].location {x, y}. Anything else (a room "513 R-068", "Main Auditorium",
-           "restaurant") → /api/search?query=...&resultRecordCount=5, then GET the chosen hit's
-           document.url: features[0].attributes are its details, features[0].centroid {x, y}.
+        settings; send only what is shown. Every position is x,y (Swiss LV95) and comes only from
+        the service, as returned: never compute or convert coordinates yourself (the lat/lon in a
+        search hit is not usable). A valid position on the CERN sites has seven digits each,
+        x ≈ 2 49x xxx and y ≈ 1 12x xxx; anything else is wrong.
+        1. Where is a place: a building number or name only → /arcgis/rest/services/Batiments/GeocodeServer/findAddressCandidates?SingleLine=31
+           gives candidates[0].location {x, y} (a room such as 31/1-010 finds nothing there). Anything
+           else (a room "31/1-010" or "513 R-068", "Main Auditorium", "restaurant") →
+           /api/search?query=...&resultRecordCount=5, then GET the chosen hit's document.url:
+           features[0].attributes are its details, features[0].centroid {x, y}.
         2. Route: /arcgis/rest/services/Routing/NetworkAnalysis/NAServer/Route/solve?stops=x1,y1;x2,y2&travelMode=3
            (3 walk, 2 bike, 1 car, 6 step-free). routes.features[0].attributes: Total_Meters and the
            minutes (Total_WalkTime, Total_BikeTime or Total_DriveTime); directions[0].features[].attributes.text
            are the steps. Answer with the mode, rounded distance and time, and the main roads.
-        3. Link (no request): https://maps.cern.ch/?n=31 for a place;
+           If a request fails, report its HTTP status and the error code and message exactly as
+           returned (quote them); do not guess the cause, and give no distance or time that the route
+           solver did not return: say they are unavailable.
+        3. Link (no request): https://maps.cern.ch/?n=31 or ?n=31%2F1-010 (the label, encoded) for a place;
            https://maps.cern.ch/?travelMode=Pedestrian&itinerary={n:"31",c:{x:x1,y:y1}}~{n:"5",c:{x:x2,y:y2}}
-           for a route (Bike, Car), percent-encoded. Add an "Open in CERN Maps" link to every answer.
+           for a route (Bike, Car), percent-encoded; the route link needs coordinates from the service,
+           so without them link each place by its label. Add "Open in CERN Maps" links to every answer,
+           also when a request failed.

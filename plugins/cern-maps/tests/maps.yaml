@@ -5,6 +5,12 @@
 - name: "search_places: a room"
   request: { method: GET, url: "https://maps.cern.ch/api/search?query=513%20R-068&resultRecordCount=3" }
   expect: { app: cern-maps, tool: search_places }
+- name: "search_places: a room label with a slash, as the instructions write it"
+  request: { method: GET, url: "https://maps.cern.ch/api/search?query=31/1-010&resultRecordCount=5" }
+  expect:
+    app: cern-maps
+    tool: search_places
+    upstream: { url: "https://maps.cern.ch/api/search?query=31/1-010&resultRecordCount=5" }
 - name: "negative search_places: POST selects no tool"
   request: { method: POST, url: "https://maps.cern.ch/api/search?query=513" }
   expect: { app: cern-maps }
