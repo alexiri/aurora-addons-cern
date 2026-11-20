@@ -7,8 +7,9 @@ CERN services that an Aurora instance administrator can register as an addon sou
 |---|---|
 | `cern-phonebook` | People and e-group lookup in CERN's central directory (`xldap.cern.ch`, anonymous LDAPS, read-only): e-mail address, office, department, manager chain. Contract status and nationality are deliberately not offered. The gateway runs every search (its LDAP lane); the sandbox never gets a raw LDAP connection. |
 | `cern-maps` | Buildings, rooms and points of interest on the CERN sites from the public CERN Maps services (`maps.cern.ch`): search, place details, building geocoding, and routes with walking, cycling and driving times. Read-only. |
+| `cern-rotas` | One rota per connection from CERN's Accelerator Schedule Management (`asm.cern.ch`): who is on duty now and the assignments of the coming seven days ("who is on the Linux rota today?", "when is my next rota week?"). Read-only; the operator must allow `asm.cern.ch` (a private address) and trust the CERN Grid CA, see its setup guide. |
 
-Both packages are credential-free: there is nothing to sign in to, and connecting one only grants an
+All three packages are credential-free: there is nothing to sign in to, and connecting one only grants an
 agent the right to use it (every request still goes through your rules and the request log).
 
 ## Use it in Aurora

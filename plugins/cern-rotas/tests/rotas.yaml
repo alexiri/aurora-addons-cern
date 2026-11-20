@@ -1,0 +1,65 @@
+# CERN Rota: every tool has a positive case and a `negative <tool>:` case. No credentials exist; the
+# connection's only value is its team ID (metadata), which always replaces the team in the path.
+- name: "get_on_duty: as the instructions write it, the team is the connection's"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/rota/on-duty" }
+  connection: { metadata: { team_id: "14651" } }
+  expect:
+    app: cern-rotas
+    tool: get_on_duty
+    upstream: { url: "https://asm.cern.ch/api/teams/14651/on-duty" }
+- name: "get_on_duty: another team in the path is replaced by the connection's"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/14652/on-duty" }
+  connection: { metadata: { team_id: "14651" } }
+  expect:
+    app: cern-rotas
+    tool: get_on_duty
+    upstream: { url: "https://asm.cern.ch/api/teams/14651/on-duty" }
+- name: "negative get_on_duty: POST selects no tool"
+  request: { method: POST, url: "https://asm.cern.ch/api/teams/rota/on-duty" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "get_week_plan: the connection's team"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/rota/week-plan" }
+  connection: { metadata: { team_id: "14652" } }
+  expect:
+    app: cern-rotas
+    tool: get_week_plan
+    upstream: { url: "https://asm.cern.ch/api/teams/14652/week-plan" }
+- name: "get_week_plan: a query string is passed on, the team still replaced"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/1/week-plan?date=2027-01-01" }
+  connection: { metadata: { team_id: "14651" } }
+  expect:
+    app: cern-rotas
+    tool: get_week_plan
+    upstream: { url: "https://asm.cern.ch/api/teams/14651/week-plan?date=2027-01-01" }
+- name: "get_week_plan: a team ID with a slash stays one path segment"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/rota/week-plan" }
+  connection: { metadata: { team_id: "1/../2" } }
+  expect:
+    app: cern-rotas
+    tool: get_week_plan
+    upstream: { url: "https://asm.cern.ch/api/teams/1%2F..%2F2/week-plan" }
+- name: "negative get_week_plan: a deeper path selects no tool"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/rota/week-plan/next" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "get_roles: the connection's team"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/rota/roles" }
+  connection: { metadata: { team_id: "14651" } }
+  expect:
+    app: cern-rotas
+    tool: get_roles
+    upstream: { url: "https://asm.cern.ch/api/teams/14651/roles" }
+- name: "negative get_roles: PUT (ASM's role editing) selects no tool"
+  request: { method: PUT, url: "https://asm.cern.ch/api/teams/rota/roles" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "negative: the team member list (private phone numbers) selects no tool"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/14651/users" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "negative: the full planning selects no tool"
+  request: { method: GET, url: "https://asm.cern.ch/api/teams/14651/calendar-events?startDate=2026-11-20T00:00:00Z&endDate=2027-03-01T00:00:00Z" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "negative: another rota's assignments by role selects no tool"
+  request: { method: GET, url: "https://asm.cern.ch/api/roles/events?roleIds=6385" }
+  expect: { app: cern-rotas, no_tool: true }
+- name: "negative: the organisation tree selects no tool"
+  request: { method: GET, url: "https://asm.cern.ch/api/units/tree" }
+  expect: { app: cern-rotas, no_tool: true }

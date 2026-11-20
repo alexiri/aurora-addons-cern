@@ -1,0 +1,76 @@
+package:
+  id: cern-rotas
+  version: 0.1.0
+  contract: 1
+  min_core: 0.1.0
+  publisher: cern
+  name: CERN Rotas
+  description: See who is on duty in a CERN rota and who is next, from the CERN Accelerator Schedule Management service (asm.cern.ch); read-only and keyless, one rota per connection
+  homepage: https://github.com/alexiri/aurora-addons-cern
+apps:
+  - about:
+      id: cern-rotas
+      name: CERN Rota
+      description: Let agents answer "who is on the Linux rota today?" or "when is my next rota week?" for one rota (a team in CERN's Accelerator Schedule Management, ASM). Add it once per rota you want to follow and name each connection after its rota. ASM publishes the current and the coming week without signing in; there is no account or password to set up.
+      category: scheduling
+      api_docs: https://asm.cern.ch
+      connect_note:
+        text: "Enter the ASM team ID of the rota (the team's number in the address of its planning page on asm.cern.ch; the Linux rota is 14651), then rename the connection after the rota, for example \"Linux rota\": that name is how the agent tells your rotas apart."
+        url: https://asm.cern.ch
+    metadata:
+      - { name: team_id }
+    connect:
+      - id: team
+        kind: fields
+        fields:
+          - name: team_id
+            label: ASM team ID
+            type: text
+            store: metadata
+            required: true
+            placeholder: "14651"
+            help_url: https://asm.cern.ch
+    # No probe: the connect probe of a fixed app host reaches public addresses only, and asm.cern.ch
+    # is on CERN's private network (172.18.x). The gateway reaches it once the operator lists it in
+    # gateway.allowed_private (see docs/setup.md).
+    #
+    # The whole host is claimed so that `block_untooled` covers every path on it: only the three
+    # catalogued reads go through (never /teams/*/users, which can carry private phone numbers).
+    # The team in the path is always the connection's: whatever the agent puts there is replaced.
+    # The team ID is metadata, not a credential, so the gateway's echo check (which looks for
+    # credentials placed in the URL) does not mistake ASM's answers, which repeat it, for a leak.
+    hosts:
+      - match: { host: asm.cern.ch }
+        inject:
+          - path_regex: { pattern: "^/api/teams/[^/]+/(on-duty|week-plan|roles)$", replacement: "/api/teams/{metadata.team_id}/$1" }
+    grants:
+      block_untooled: true
+    tools:
+      read:
+        items:
+          - { id: get_on_duty, name: "Who is on duty in the rota now", host: asm.cern.ch, path: /api/teams/*/on-duty, methods: [GET],
+              description: "The assignments active right now: name, login, e-mail, work phone, start and end (UTC), and any leave recorded in ASM." }
+          - { id: get_week_plan, name: "The rota's assignments from today to a week ahead", host: asm.cern.ch, path: /api/teams/*/week-plan, methods: [GET],
+              description: "Every assignment overlapping today 00:00 to seven days ahead, by start: on a weekly rota, the current person and the next." }
+          - { id: get_roles, name: "The rota's roles and handover times", host: asm.cern.ch, path: /api/teams/*/roles, methods: [GET],
+              description: "The rota's role definitions (name, usual handover day and time) and ASM's generic availability roles." }
+    agent:
+      instructions: |
+        Each account is one rota; its label names it ("Linux rota"). With several accounts send the
+        header x-aurora-connection-id: <id> of the one asked about (a 409 multiple_connections lists
+        them). Plain GET, no sign-in; Aurora puts in the rota's team, so call exactly:
+        - https://asm.cern.ch/api/teams/rota/on-duty: who is on duty now.
+        - https://asm.cern.ch/api/teams/rota/week-plan: every assignment from today 00:00 to 7 days
+          ahead (Geneva time), by start; on a weekly rota, the current person and the next one.
+        - https://asm.cern.ch/api/teams/rota/roles: role definitions. The rota's own role has a
+          teamId; startTime and weekDay (1 = Monday) are the usual handover, Geneva time.
+        on-duty and week-plan return a JSON list of {userId (CERN login), name, email, phoneNumber,
+        roleName, fromDate, toDate, leaveType}; dates are UTC: give them in the person's time
+        zone (Geneva unless you know otherwise). [] means nobody is assigned.
+        Answers. "Who is on X today/now": on-duty; around a handover (often Friday 17:30) say who
+        hands over to whom and when. "Who is next": the first week-plan entry whose fromDate is in
+        the future. "When am I on": match the person by login or e-mail in week-plan; only the
+        coming 7 days are published without signing in, so if they are not there say they are not
+        on duty in the coming 7 days and that the full planning is on https://asm.cern.ch. Never
+        guess dates beyond what was returned.
+        Only these three calls work; everything else on asm.cern.ch is blocked.
