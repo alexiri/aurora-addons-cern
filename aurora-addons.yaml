@@ -59,6 +59,11 @@ addons:
     name: "CERN Rotas"
     description: "See who is on duty in a CERN rota and who is next, from the CERN Accelerator Schedule Management service (asm.cern.ch); read-only and keyless, one rota per connection"
     versions:
+      "0.1.1":
+        package: https://github.com/alexiri/aurora-addons-cern/releases/download/v3/cern-rotas-0.1.1.aurora-plugin
+        sha256: 0a9951dc4f0d1ef7888788348d68a05fef0f0edfa2cc9f69e0b6b2bac66b034c
+        size_bytes: 21462
+        min_core: "0.1.0"
       "0.1.0":
         package: https://github.com/alexiri/aurora-addons-cern/releases/download/v2/cern-rotas-0.1.0.aurora-plugin
         sha256: a72b1b00b6cb85ce5031959947b08b88d30b1dfbd5b561f3d03e162c8fae4c2f
