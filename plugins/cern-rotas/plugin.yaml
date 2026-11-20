@@ -1,6 +1,6 @@
 package:
   id: cern-rotas
-  version: 0.1.0
+  version: 0.1.1
   contract: 1
   min_core: 0.1.0
   publisher: cern
@@ -56,9 +56,11 @@ apps:
               description: "The rota's role definitions (name, usual handover day and time) and ASM's generic availability roles." }
     agent:
       instructions: |
-        Each account is one rota; its label names it ("Linux rota"). With several accounts send the
-        header x-aurora-connection-id: <id> of the one asked about (a 409 multiple_connections lists
-        them). Plain GET, no sign-in; Aurora puts in the rota's team, so call exactly:
+        Each account is one rota. With several, send x-aurora-connection-id: <id> of the rota asked
+        about (a 409 multiple_connections lists them). Pick it by its label; if no label names it,
+        call roles on each account (the role with a teamId is the rota's ASM name) and pick by
+        that; if still unclear, ask which rota is meant. Never guess or call a rota by the wrong
+        name. Plain GET, no sign-in; Aurora puts in the rota's team, so call exactly:
         - https://asm.cern.ch/api/teams/rota/on-duty: who is on duty now.
         - https://asm.cern.ch/api/teams/rota/week-plan: every assignment from today 00:00 to 7 days
           ahead (Geneva time), by start; on a weekly rota, the current person and the next one.
@@ -66,7 +68,8 @@ apps:
           teamId; startTime and weekDay (1 = Monday) are the usual handover, Geneva time.
         on-duty and week-plan return a JSON list of {userId (CERN login), name, email, phoneNumber,
         roleName, fromDate, toDate, leaveType}; dates are UTC: give them in the person's time
-        zone (Geneva unless you know otherwise). [] means nobody is assigned.
+        zone (Geneva unless you know otherwise). [] means nobody is assigned. Mention leaveType
+        only when asked or when it matters (the person on duty is away now); else leave it out.
         Answers. "Who is on X today/now": on-duty; around a handover (often Friday 17:30) say who
         hands over to whom and when. "Who is next": the first week-plan entry whose fromDate is in
         the future. "When am I on": match the person by login or e-mail in week-plan; only the
